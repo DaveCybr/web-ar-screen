@@ -1,5 +1,5 @@
 /**
- * WebAR Image Tracker - Main Entry Point
+ * WebAR Image Tracker - Main Entry Point dengan Video Support
  */
 
 import { CONFIG, getOptimalConfig } from "./config.js";
@@ -16,6 +16,7 @@ class WebARApp {
     this.config = getOptimalConfig();
     this.initialized = false;
     this.targets = new Map();
+    this.videoContents = new Map();
 
     // UI Elements
     this.elements = {
@@ -29,6 +30,7 @@ class WebARApp {
       controlPanel: document.getElementById("controlPanel"),
       closePanel: document.getElementById("closePanel"),
       imageUpload: document.getElementById("imageUpload"),
+      videoUpload: document.getElementById("videoUpload"), // NEW
       targetsList: document.getElementById("targetsList"),
       targetCount: document.getElementById("targetCount"),
       targetInfo: document.getElementById("targetInfo"),
@@ -50,24 +52,19 @@ class WebARApp {
       this.logger.info("Initializing WebAR application...");
       this.updateProgress(0, "Loading OpenCV...");
 
-      // Wait for OpenCV to load
       await this.waitForOpenCV();
       this.updateProgress(30, "OpenCV loaded");
 
-      // Initialize storage
       this.cacheManager = new CacheManager(this.config.storage);
       await this.cacheManager.init();
       this.updateProgress(40, "Storage initialized");
 
-      // Setup UI event listeners
       this.setupEventListeners();
       this.updateProgress(50, "UI ready");
 
-      // Load cached targets if any
       await this.loadCachedTargets();
       this.updateProgress(100, "Ready");
 
-      // Show permission prompt
       setTimeout(() => {
         this.elements.loadingScreen.classList.add("hidden");
         this.elements.permissionPrompt.classList.remove("hidden");
@@ -115,7 +112,6 @@ class WebARApp {
       this.elements.loadingScreen.classList.remove("hidden");
       this.updateProgress(0, "Requesting camera access...");
 
-      // Initialize camera
       this.cameraManager = new CameraManager(
         document.getElementById("cameraVideo"),
         this.config.camera
@@ -123,12 +119,10 @@ class WebARApp {
       await this.cameraManager.start();
       this.updateProgress(30, "Camera ready");
 
-      // Initialize viewport manager
       this.viewportManager = new ViewportManager();
       this.viewportManager.init();
       this.updateProgress(40, "Viewport configured");
 
-      // Initialize AR renderer
       this.arRenderer = new ARRenderer(
         "arCanvas",
         this.cameraManager.videoElement,
@@ -137,7 +131,11 @@ class WebARApp {
       await this.arRenderer.init();
       this.updateProgress(60, "AR renderer ready");
 
-      // Initialize image tracker
+      // Load video contents ke renderer
+      this.videoContents.forEach((videoUrl, targetId) => {
+        this.arRenderer.setTargetContent(targetId, videoUrl);
+      });
+
       this.imageTracker = new ImageTracker(
         this.cameraManager,
         this.arRenderer,
@@ -146,17 +144,14 @@ class WebARApp {
       await this.imageTracker.init();
       this.updateProgress(80, "Tracker initialized");
 
-      // Load targets into tracker
       if (this.targets.size > 0) {
         await this.imageTracker.loadTargets(Array.from(this.targets.values()));
       }
       this.updateProgress(90, "Targets loaded");
 
-      // Start tracking
       this.imageTracker.start(this.onDetection.bind(this));
       this.updateProgress(100, "Ready!");
 
-      // Show app
       setTimeout(() => {
         this.elements.loadingScreen.classList.add("hidden");
         this.elements.app.classList.remove("hidden");
@@ -192,7 +187,6 @@ class WebARApp {
       if (target) {
         this.showTargetInfo(target.name);
 
-        // Haptic feedback
         if (this.config.ui.hapticFeedback && navigator.vibrate) {
           navigator.vibrate(50);
         }
@@ -223,14 +217,12 @@ class WebARApp {
           height: image.height,
           features: null,
           timestamp: Date.now(),
+          hasVideo: false,
         };
 
         this.targets.set(targetId, target);
-
-        // Cache target
         await this.cacheManager.set("targets", targetId, target);
 
-        // Add to tracker if initialized
         if (this.imageTracker) {
           await this.imageTracker.addTarget(target);
         }
@@ -245,11 +237,54 @@ class WebARApp {
   }
 
   /**
+   * Load video content untuk target
+   */
+  async loadVideoForTarget(targetId, file) {
+    try {
+      this.logger.info(`Loading video for target ${targetId}...`);
+
+      const videoUrl = await this.readFileAsDataURL(file);
+
+      // Store video URL
+      this.videoContents.set(targetId, videoUrl);
+
+      // Update target
+      const target = this.targets.get(targetId);
+      if (target) {
+        target.hasVideo = true;
+        target.videoName = file.name;
+        await this.cacheManager.set("targets", targetId, target);
+      }
+
+      // Cache video
+      await this.cacheManager.set("videos", targetId, {
+        url: videoUrl,
+        name: file.name,
+      });
+
+      // Update renderer jika sudah init
+      if (this.arRenderer) {
+        this.arRenderer.setTargetContent(targetId, videoUrl);
+      }
+
+      this.updateTargetsList();
+      this.logger.info(`Video loaded for target: ${target.name}`);
+      this.showSuccess(`Video "${file.name}" loaded!`);
+    } catch (error) {
+      this.logger.error("Failed to load video:", error);
+      this.showError("Failed to load video");
+    }
+  }
+
+  /**
    * Remove target
    */
   async removeTarget(targetId) {
     this.targets.delete(targetId);
+    this.videoContents.delete(targetId);
+
     await this.cacheManager.delete("targets", targetId);
+    await this.cacheManager.delete("videos", targetId);
 
     if (this.imageTracker) {
       this.imageTracker.removeTarget(targetId);
@@ -267,6 +302,17 @@ class WebARApp {
 
       for (const target of cachedTargets) {
         this.targets.set(target.id, target);
+      }
+
+      // Load cached videos
+      try {
+        const cachedVideos = await this.cacheManager.getAll("videos");
+        for (const video of cachedVideos) {
+          this.videoContents.set(video.id, video.url);
+        }
+      } catch (e) {
+        // Videos store mungkin belum ada
+        this.logger.warn("No cached videos found");
       }
 
       if (cachedTargets.length > 0) {
@@ -288,22 +334,56 @@ class WebARApp {
     this.targets.forEach((target, id) => {
       const item = document.createElement("div");
       item.className = "target-item";
-      item.innerHTML = `
-                <img src="${target.image}" alt="${target.name}" class="target-thumbnail">
-                <div class="target-details">
-                    <div class="target-name">${target.name}</div>
-                    <div class="target-features">${target.width} × ${target.height}</div>
-                </div>
-                <button class="target-remove" data-id="${id}">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            `;
 
+      const hasVideo = this.videoContents.has(id);
+      const videoIndicator = hasVideo
+        ? '<span class="video-badge">📹 Video</span>'
+        : '<span class="video-badge no-video">No Video</span>';
+
+      item.innerHTML = `
+        <img src="${target.image}" alt="${target.name}" class="target-thumbnail">
+        <div class="target-details">
+          <div class="target-name">${target.name}</div>
+          <div class="target-features">${target.width} × ${target.height}</div>
+          ${videoIndicator}
+        </div>
+        <div class="target-actions">
+          <button class="target-video-btn" data-id="${id}" title="Add Video">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="23 7 16 12 23 17 23 7"></polygon>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+          </button>
+          <button class="target-remove" data-id="${id}" title="Remove">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      `;
+
+      // Video upload button
+      const videoBtn = item.querySelector(".target-video-btn");
+      videoBtn.addEventListener("click", () => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "video/*";
+        input.onchange = (e) => {
+          if (e.target.files.length > 0) {
+            this.loadVideoForTarget(id, e.target.files[0]);
+          }
+        };
+        input.click();
+      });
+
+      // Remove button
       const removeBtn = item.querySelector(".target-remove");
-      removeBtn.addEventListener("click", () => this.removeTarget(id));
+      removeBtn.addEventListener("click", () => {
+        if (confirm(`Remove target "${target.name}"?`)) {
+          this.removeTarget(id);
+        }
+      });
 
       list.appendChild(item);
     });
@@ -315,10 +395,8 @@ class WebARApp {
    * Setup UI event listeners
    */
   setupEventListeners() {
-    // Start AR
     this.elements.startBtn.addEventListener("click", () => this.startAR());
 
-    // Menu toggle
     this.elements.menuBtn.addEventListener("click", () => {
       this.elements.controlPanel.classList.add("open");
     });
@@ -327,30 +405,27 @@ class WebARApp {
       this.elements.controlPanel.classList.remove("open");
     });
 
-    // Image upload
     this.elements.imageUpload.addEventListener("change", (e) => {
       if (e.target.files.length > 0) {
         this.loadTargets(Array.from(e.target.files));
-        e.target.value = ""; // Reset input
+        e.target.value = "";
       }
     });
 
-    // Clear cache
     this.elements.clearCache.addEventListener("click", async () => {
       if (confirm("Clear all cached data?")) {
         await this.cacheManager.clear();
         this.targets.clear();
+        this.videoContents.clear();
         this.updateTargetsList();
         this.logger.info("Cache cleared");
       }
     });
 
-    // Export debug
     this.elements.exportDebug.addEventListener("click", () => {
       this.exportDebugInfo();
     });
 
-    // Settings sliders
     this.elements.sensitivitySlider.addEventListener("input", (e) => {
       const value = e.target.value;
       this.elements.sensitivityValue.textContent = value;
@@ -390,7 +465,30 @@ class WebARApp {
   }
 
   showError(message) {
-    alert(message); // Replace with better toast notification
+    // Simple toast notification
+    const toast = document.createElement("div");
+    toast.className = "toast toast-error";
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.classList.add("show"), 100);
+    setTimeout(() => {
+      toast.classList.remove("show");
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  showSuccess(message) {
+    const toast = document.createElement("div");
+    toast.className = "toast toast-success";
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.classList.add("show"), 100);
+    setTimeout(() => {
+      toast.classList.remove("show");
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
   }
 
   readFileAsDataURL(file) {
@@ -419,6 +517,7 @@ class WebARApp {
         id: t.id,
         name: t.name,
         size: `${t.width}x${t.height}`,
+        hasVideo: this.videoContents.has(t.id),
       })),
       system: {
         userAgent: navigator.userAgent,
