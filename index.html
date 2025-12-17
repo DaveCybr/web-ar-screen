@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <title>AR Content Manager</title>
+
+    <!-- A-Frame & MindAR CDN -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  </head>
+  <body>
+    <!-- Start Modal -->
+    <div id="start-modal" class="modal">
+      <div class="modal-overlay"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-icon">📱</div>
+          <h1 class="modal-title">AR Content Manager</h1>
+          <p class="modal-subtitle">
+            Upload marker & content - Stored with IndexedDB
+          </p>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="upload">📤 Upload</button>
+          <button class="tab" data-tab="cache">💾 Cached</button>
+        </div>
+
+        <!-- Upload Tab -->
+        <div class="tab-content active" id="upload-tab">
+          <div class="section">
+            <div class="section-title">
+              <span>🎯</span>
+              <span>Marker Image</span>
+            </div>
+            <div class="section-desc">Upload .mind file or image</div>
+
+            <div class="upload-zone" id="marker-zone">
+              <div class="upload-icon">📷</div>
+              <div class="upload-text">Drop .mind file or image here</div>
+              <div class="upload-hint">or click to browse</div>
+            </div>
+            <input
+              type="file"
+              id="marker-input"
+              accept=".mind,image/*"
+              style="display: none"
+            />
+
+            <div id="marker-preview" class="preview-container"></div>
+
+            <div class="alert alert-info">
+              💡 Use images with clear details and good contrast
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">
+              <span>🎬</span>
+              <span>AR Content</span>
+            </div>
+            <div class="section-desc">Upload video or image</div>
+
+            <div class="upload-zone" id="content-zone">
+              <div class="upload-icon">🎥</div>
+              <div class="upload-text">Drop media file here</div>
+              <div class="upload-hint">
+                Video (MP4, WebM) or Image (JPG, PNG)
+              </div>
+            </div>
+            <input
+              type="file"
+              id="content-input"
+              accept="video/*,image/*"
+              style="display: none"
+            />
+
+            <div id="content-preview" class="preview-container"></div>
+
+            <div class="alert alert-warning">
+              ⚠️ Large files supported via IndexedDB
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" id="save-btn" disabled>
+              💾 Save & Start AR
+            </button>
+          </div>
+        </div>
+
+        <!-- Cache Tab -->
+        <div class="tab-content" id="cache-tab">
+          <div class="section">
+            <div class="section-title">
+              <span>📦</span>
+              <span>Saved Projects</span>
+            </div>
+            <div class="section-desc">Your cached AR projects</div>
+
+            <div class="cache-list" id="cache-list">
+              <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <div>No cached projects yet</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stats" id="cache-stats">
+            <div class="stat">
+              <div class="stat-value">0</div>
+              <div class="stat-label">Projects</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">0 MB</div>
+              <div class="stat-label">Storage</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">-</div>
+              <div class="stat-label">Status</div>
+            </div>
+          </div>
+
+          <div class="btn-group" style="margin-top: 16px">
+            <button
+              class="btn btn-secondary"
+              onclick="window.location.reload()"
+            >
+              ← Back
+            </button>
+            <button class="btn btn-danger" id="clear-all-btn">
+              🗑️ Clear All
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="hidden">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loading-text">Initializing...</div>
+      <div class="loading-progress" id="loading-progress"></div>
+    </div>
+
+    <!-- AR UI Controls -->
+    <div id="ar-ui">
+      <button class="ui-btn" id="menu-btn">☰</button>
+      <button class="ui-btn" id="reload-btn">🔄</button>
+    </div>
+
+    <!-- Status Bar -->
+    <div id="status-bar">
+      <span class="status-dot"></span>
+      <span id="status-text">Scanning for marker...</span>
+    </div>
+
+    <!-- A-Frame Scene -->
+    <a-scene
+      id="ar-scene"
+      mindar-image="autoStart: false; uiLoading: no; uiScanning: no; uiError: no;"
+      color-space="sRGB"
+      renderer="colorManagement: true; antialias: true; alpha: true"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+      embedded
+    >
+      <a-assets id="ar-assets"></a-assets>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-entity id="ar-target"></a-entity>
+    </a-scene>
+
+    <!-- Main App Script -->
+    <link rel="stylesheet" href="/src/styles/main.css" />
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
