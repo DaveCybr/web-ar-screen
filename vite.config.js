@@ -1,20 +1,28 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  server: {
-    https: false, // ← Ubah jadi false untuk development
-    port: 3000,
-    host: true, // Allow access from network
-  },
+  base: "./",
   build: {
-    target: "esnext",
-    minify: "terser",
+    outDir: "dist",
+    assetsDir: "assets",
+    sourcemap: true,
+    target: "es2020",
     rollupOptions: {
       output: {
         manualChunks: {
-          three: ["three"],
+          vendor: ["aframe"],
         },
       },
+    },
+  },
+  server: {
+    port: 3000,
+    https: false, // Set true for production with cert
+    open: true,
+  },
+  resolve: {
+    alias: {
+      "@": "/src",
     },
   },
 });
