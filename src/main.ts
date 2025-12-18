@@ -16,14 +16,15 @@ declare global {
 }
 
 // ==========================================
-// CLOUDINARY CONFIGURATION
-// Replace with your own credentials
+// CLOUDINARY CONFIGURATION (SECURE)
+// Only use unsigned upload preset - NO API SECRET!
 // ==========================================
-const CLOUDINARY_CLOUD_NAME = "dlf9pykus"; // e.g., "dxxxxx"
-const CLOUDINARY_UPLOAD_PRESET = "ar_markers"; // e.g., "ar_markers"
+const CLOUDINARY_CLOUD_NAME = "dlf9pykus";
+const CLOUDINARY_UPLOAD_PRESET = "ar_markers"; // Must be UNSIGNED preset
 
-const CLOUDINARY_API_KEY = "779388861916324";
-const CLOUDINARY_API_SECRET = "hQcM99xTZjrKwGLZgH0bXY2YSsU";
+// ❌ REMOVED: API_SECRET - NEVER expose secrets in client!
+// If you need authenticated operations, use a backend server
+
 // Initialize app
 document.addEventListener("DOMContentLoaded", () => {
   // Configure Cloudinary
@@ -36,6 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("📱 Device:", navigator.userAgent);
   console.log("💾 IndexedDB available:", "indexedDB" in window);
   console.log("☁️ Cloudinary configured:", CLOUDINARY_CLOUD_NAME);
+  console.log("📦 Upload preset:", CLOUDINARY_UPLOAD_PRESET);
 
   // Log A-Frame version for debugging
   if (typeof AFRAME !== "undefined") {
@@ -43,4 +45,16 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     console.error("❌ A-Frame not loaded from CDN!");
   }
+
+  // Display configuration help
+  console.log(
+    "%c📋 Cloudinary Setup Instructions:",
+    "color: #667eea; font-weight: bold; font-size: 14px"
+  );
+  console.log("1. Go to: https://console.cloudinary.com/settings/upload");
+  console.log("2. Click 'Add upload preset'");
+  console.log("3. Set Signing Mode: Unsigned");
+  console.log("4. Set Preset name: ar_markers");
+  console.log("5. Set Folder: ar-markers (optional)");
+  console.log("6. Save preset");
 });
