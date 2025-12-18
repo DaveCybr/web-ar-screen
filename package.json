@@ -11,8 +11,5 @@
   "devDependencies": {
     "typescript": "^5.3.3",
     "vite": "^5.0.10"
-  },
-  "dependencies": {
-    "aframe": "^1.7.1"
   }
 }

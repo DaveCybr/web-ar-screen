@@ -1,7 +1,5 @@
-// ==========================================
-// FILE: src/core/ARManager.ts
-// ==========================================
 import type { Project } from "../types/index";
+import { FileUtils } from "@/utils/fileUtils";
 
 export class ARManager {
   private project: Project;
@@ -26,21 +24,23 @@ export class ARManager {
   }
 
   private async setupMarker(): Promise<void> {
-    const { markerData } = this.project;
+    let { markerData } = this.project;
 
+    // CRITICAL FIX: Convert data URLs to blob URLs for MindAR
+    // MindAR needs to fetch the file, and data URLs can cause parsing issues
+    if (markerData.startsWith("data:")) {
+      console.log("Converting marker data URL to blob URL...");
+      markerData = FileUtils.dataURLToBlobURL(markerData);
+    }
+
+    // Set MindAR configuration
     this.scene.setAttribute(
       "mindar-image",
-      JSON.stringify({
-        imageTargetSrc: markerData,
-        autoStart: false,
-        uiLoading: "no",
-        uiScanning: "no",
-        uiError: "no",
-      })
+      `imageTargetSrc: ${markerData}; autoStart: false; uiLoading: no; uiScanning: no; uiError: no;`
     );
 
     this.target.setAttribute("mindar-image-target", "targetIndex: 0");
-    console.log("✅ Marker configured");
+    console.log("✅ Marker configured:", this.project.markerName);
   }
 
   private async setupContent(): Promise<void> {
@@ -82,7 +82,7 @@ export class ARManager {
     }
 
     this.addCornerMarkers();
-    console.log("✅ Content configured");
+    console.log("✅ Content configured:", this.project.contentName);
   }
 
   private addCornerMarkers(): void {
