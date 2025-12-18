@@ -39,22 +39,34 @@ export class FileProcessor {
 
       onProgress?.("Marker uploaded successfully!");
 
+      console.log("✅ FileProcessor: .mind file uploaded", {
+        url: uploadResult.url,
+        hosted: true,
+        type: "mind",
+      });
+
       return {
         data: uploadResult.url, // Permanent cloud URL
         type: "mind",
         name: file.name,
         size: file.size,
-        hosted: true,
+        hosted: true, // ✅ Explicitly set to true for .mind files
       };
     } else {
       // For images, store locally as data URL
       const dataUrl = await FileUtils.readAsDataURL(file);
+
+      console.log("✅ FileProcessor: Image stored locally", {
+        type: "image",
+        hosted: false,
+      });
+
       return {
         data: dataUrl,
         type: "image",
         name: file.name,
         size: file.size,
-        hosted: false,
+        hosted: false, // ✅ Explicitly set to false for images
       };
     }
   }

@@ -58,3 +58,54 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("5. Set Folder: ar-markers (optional)");
   console.log("6. Save preset");
 });
+
+// Add this to main.ts or create a separate debug.ts file
+
+export class StorageDebugger {
+  static async debugCurrentProject() {
+    const dbName = "ARContentDB";
+    const storeName = "projects";
+
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(dbName);
+
+      request.onsuccess = () => {
+        const db = request.result;
+        const tx = db.transaction([storeName], "readonly");
+        const store = tx.objectStore(storeName);
+        const getAllRequest = store.getAll();
+
+        getAllRequest.onsuccess = () => {
+          const projects = getAllRequest.result;
+          console.log("📦 Total projects in IndexedDB:", projects.length);
+
+          projects.forEach((project, index) => {
+            console.group(`🔍 Project ${index + 1}: ${project.id}`);
+            console.log("Name:", project.name);
+            console.log("Marker Type:", project.markerType);
+            console.log("Marker Hosted:", project.markerHosted); // ✅ CHECK THIS
+            console.log(
+              "Marker Data (first 100 chars):",
+              project.markerData?.substring(0, 100)
+            );
+            console.log("Content Type:", project.contentType);
+            console.log(
+              "Created:",
+              new Date(project.createdAt).toLocaleString()
+            );
+            console.groupEnd();
+          });
+
+          resolve(projects);
+        };
+
+        getAllRequest.onerror = () => reject(getAllRequest.error);
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+}
+
+// Usage: Add to browser console or call from main.ts
+// StorageDebugger.debugCurrentProject();

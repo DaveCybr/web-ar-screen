@@ -77,12 +77,21 @@ export class Uploader {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("upload_preset", this.UPLOAD_PRESET);
+
+      // ✅ CRITICAL: Use 'raw' for binary files like .mind
       formData.append("resource_type", "raw");
+
+      // Set folder and public_id
       formData.append("folder", "ar-markers");
       formData.append(
         "public_id",
         `${Date.now()}_${file.name.replace(/\.[^/.]+$/, "")}`
       );
+
+      // ✅ Force correct content type for .mind files
+      if (ext === ".mind") {
+        formData.append("content_type", "application/octet-stream");
+      }
 
       // Upload with XMLHttpRequest for progress tracking
       const uploadUrl = `https://api.cloudinary.com/v1_1/${this.CLOUD_NAME}/raw/upload`;
@@ -103,10 +112,13 @@ export class Uploader {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const data = JSON.parse(xhr.responseText);
+
+              // ✅ Log the actual URL being used
               console.log("✅ Upload successful:", {
                 url: data.secure_url,
                 bytes: this.formatBytes(data.bytes),
                 format: data.format,
+                resource_type: data.resource_type,
               });
 
               resolve({

@@ -24,14 +24,67 @@ export class ARManager {
   }
 
   private async setupMarker(): Promise<void> {
-    const { markerData, markerHosted } = this.project;
+    const { markerData, markerHosted, markerType } = this.project;
 
     let markerUrl: string;
 
-    if (markerHosted) {
-      // Marker is already hosted on cloud - use directly
-      markerUrl = markerData;
-      console.log("✅ Using cloud-hosted marker:", markerUrl);
+    // ✅ CRITICAL FIX: Always fetch .mind files as binary (hosted or not)
+    if (markerType === "mind") {
+      console.log("🔄 Fetching .mind file from cloud...", markerData);
+      console.log("📊 markerHosted:", markerHosted, "markerType:", markerType);
+
+      try {
+        // Dispatch loading event
+        window.dispatchEvent(
+          new CustomEvent("ar:loading", {
+            detail: { message: "Downloading marker file..." },
+          })
+        );
+
+        const response = await fetch(markerData, {
+          method: "GET",
+          mode: "cors",
+          cache: "no-cache",
+        });
+
+        console.log(
+          "📡 Response status:",
+          response.status,
+          response.statusText
+        );
+        console.log("📝 Response headers:", {
+          contentType: response.headers.get("content-type"),
+          contentLength: response.headers.get("content-length"),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch marker: ${response.status} ${response.statusText}`
+          );
+        }
+
+        // Get as ArrayBuffer to preserve binary data
+        const arrayBuffer = await response.arrayBuffer();
+        console.log(
+          `✅ Downloaded ${arrayBuffer.byteLength} bytes (${(
+            arrayBuffer.byteLength / 1024
+          ).toFixed(2)} KB)`
+        );
+
+        // Verify it's actually binary data
+        const uint8Array = new Uint8Array(arrayBuffer);
+        console.log("🔍 First 4 bytes:", Array.from(uint8Array.slice(0, 4)));
+
+        // Create blob URL from binary data
+        const blob = new Blob([arrayBuffer], {
+          type: "application/octet-stream",
+        });
+        markerUrl = URL.createObjectURL(blob);
+        console.log("✅ Blob URL created for .mind file:", markerUrl);
+      } catch (error) {
+        console.error("❌ Failed to fetch .mind file:", error);
+        throw new Error(`Failed to load marker from cloud: ${error}`);
+      }
     } else if (markerData.startsWith("data:")) {
       // Convert data URL to blob URL for local images
       console.log("Converting local image to blob URL...");
@@ -133,13 +186,18 @@ export class ARManager {
   private setupEvents(): void {
     const isVideo = this.project.contentType.startsWith("video");
 
+    // Listen for loading events
+    window.addEventListener("ar:loading", ((e: CustomEvent) => {
+      console.log("⏳", e.detail.message);
+    }) as EventListener);
+
     this.target.addEventListener("targetFound", () => {
       console.log("✅ Target detected");
       window.dispatchEvent(new CustomEvent("ar:target-found"));
 
       if (isVideo && this.mediaElement instanceof HTMLVideoElement) {
         this.mediaElement.play().catch(() => {
-          this.mediaElement!.muted = true;
+          // this.mediaElement!.muted = true;
           (this.mediaElement as HTMLVideoElement).play();
         });
       }

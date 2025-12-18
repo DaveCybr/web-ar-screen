@@ -102,10 +102,19 @@ export class UIController {
 
       const processed = await this.fileProcessor.processMarkerFile(file);
 
+      // ✅ Store all marker properties including hosted flag
       this.currentProject.markerData = processed.data;
       this.currentProject.markerType = processed.type;
       this.currentProject.markerName = processed.name;
       this.currentProject.markerSize = processed.size;
+      this.currentProject.markerHosted = processed.hosted; // ✅ CRITICAL: Store hosted flag
+
+      console.log("✅ UIController: Marker processed", {
+        type: processed.type,
+        hosted: processed.hosted,
+        name: processed.name,
+        dataPreview: processed.data.substring(0, 100) + "...",
+      });
 
       preview.innerHTML = this.renderFilePreview(processed, "marker");
       preview.classList.add("visible");
