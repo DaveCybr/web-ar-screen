@@ -38,28 +38,8 @@ export class FileUtils {
     return filename.split(".").pop()?.toLowerCase() || "";
   }
 
-  // CRITICAL: Convert ArrayBuffer to Base64 for IndexedDB storage
-  static arrayBufferToBase64(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = "";
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
-  }
-
-  // CRITICAL: Convert Base64 back to ArrayBuffer when loading from IndexedDB
-  static base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes.buffer;
-  }
-
-  // Convert base64 data URL to Blob URL
-  static dataURLToBlobURL(dataURL: string): string {
+  // Convert data URL to Blob
+  static dataURLToBlob(dataURL: string): Blob {
     const arr = dataURL.split(",");
     const mime = arr[0].match(/:(.*?);/)?.[1] || "application/octet-stream";
     const bstr = atob(arr[1]);
@@ -68,7 +48,12 @@ export class FileUtils {
     for (let i = 0; i < n; i++) {
       u8arr[i] = bstr.charCodeAt(i);
     }
-    const blob = new Blob([u8arr], { type: mime });
+    return new Blob([u8arr], { type: mime });
+  }
+
+  // Convert base64 data URL to Blob URL
+  static dataURLToBlobURL(dataURL: string): string {
+    const blob = this.dataURLToBlob(dataURL);
     return URL.createObjectURL(blob);
   }
 }

@@ -24,19 +24,29 @@ export class ARManager {
   }
 
   private async setupMarker(): Promise<void> {
-    let { markerData } = this.project;
+    const { markerData, markerHosted } = this.project;
 
-    // CRITICAL FIX: Convert data URLs to blob URLs for MindAR
-    // MindAR needs to fetch the file, and data URLs can cause parsing issues
-    if (markerData.startsWith("data:")) {
-      console.log("Converting marker data URL to blob URL...");
-      markerData = FileUtils.dataURLToBlobURL(markerData);
+    let markerUrl: string;
+
+    if (markerHosted) {
+      // Marker is already hosted on cloud - use directly
+      markerUrl = markerData;
+      console.log("✅ Using cloud-hosted marker:", markerUrl);
+    } else if (markerData.startsWith("data:")) {
+      // Convert data URL to blob URL for local images
+      console.log("Converting local image to blob URL...");
+      const blob = FileUtils.dataURLToBlob(markerData);
+      markerUrl = URL.createObjectURL(blob);
+      console.log("✅ Blob URL created");
+    } else {
+      // Already a valid URL
+      markerUrl = markerData;
     }
 
     // Set MindAR configuration
     this.scene.setAttribute(
       "mindar-image",
-      `imageTargetSrc: ${markerData}; autoStart: false; uiLoading: no; uiScanning: no; uiError: no;`
+      `imageTargetSrc: ${markerUrl}; autoStart: false; uiLoading: no; uiScanning: no; uiError: no;`
     );
 
     this.target.setAttribute("mindar-image-target", "targetIndex: 0");

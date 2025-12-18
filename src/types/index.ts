@@ -1,10 +1,11 @@
 export interface Project {
   id: string;
   name: string;
-  markerData: string;
-  markerType: 'mind' | 'image';
+  markerData: string; // URL to hosted file or data URL for images
+  markerType: "mind" | "image";
   markerName: string;
   markerSize: number;
+  markerHosted: boolean; // true if uploaded to cloud
   contentData: string;
   contentType: string;
   contentName: string;
@@ -22,4 +23,10 @@ export interface ARConfig {
   uiLoading: string;
   uiScanning: string;
   uiError: string;
+}
+
+export interface UploadResponse {
+  success: boolean;
+  url?: string;
+  error?: string;
 }
